@@ -26,10 +26,6 @@
 #include "sat/sat_planner.h"
 #include "Invariants.h"
 
-#include "symbolic_search/automaton.h"
-
-#include "translation/translationController.h"
-
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
 
@@ -515,6 +511,136 @@ int main(int argc, char *argv[]) {
                 htn, hLength - 1,
                 estimate, true);
         ((hhRC2<hsAddFF>*)heuristics[hLength - 1])->sasH->heuristic = sasAdd;
+        aStarType = gValActionPathCosts;
+        aStarWeight = 2;
+        bool suboptimalSearch = args_info.suboptimal_flag;
+        cout << "Search config:" << endl;
+        cout << "Time limit: " << timeL << " seconds" << endl;
+        cout << " - type: ";
+        switch (aStarType){
+            case gValNone: cout << "greedy"; break;
+            case gValActionCosts: cout << "cost optimal"; break;
+            case gValPathCosts: cout << "path cost"; break;
+            case gValActionPathCosts: cout << "action cost + decomposition cost"; break;
+        }
+        cout << endl;
+        cout << " - weight: " << aStarWeight << endl;
+        cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
+
+        bool noVisitedList = args_info.noVisitedList_flag;
+        bool allowGIcheck = args_info.noGIcheck_flag;
+        bool taskHash = args_info.noTaskHash_flag;
+        bool taskSequenceHash = args_info.noTaskSequenceHash_flag;
+        bool topologicalOrdering = args_info.noTopologicalOrdering_flag;
+        bool orderPairsHash = args_info.noOrderPairs_flag;
+        bool layerHash = args_info.noLayers_flag;
+        bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
+
+        VisitedList visi(
+                htn, noVisitedList,
+                suboptimalSearch,
+                taskHash, taskSequenceHash,
+                topologicalOrdering,
+                orderPairsHash, layerHash,
+                allowGIcheck,
+                allowParalleSequencesMode);
+        PriorityQueueSearch search;
+        OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+        cout << "Start the Inner Planner" << endl;
+        timeval tp;
+        gettimeofday(&tp, NULL);
+        long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        long currentT;
+        searchNode* sol = search.search(
+                htn, tnI, timeL,
+                suboptimalSearch,
+                true,
+                false,
+                heuristics,
+                hLength, visi, fringe);
+        gettimeofday(&tp, NULL);
+        currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        long newTimeLimit = timeL - ((currentT - startT)/1000);
+        if (sol != nullptr) {
+            auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+            ofstream ofile;
+            ofile.open(args_info.output_arg);
+            ofile << plan << endl;
+            ofile.close();
+            return 0;
+        } else {
+            cout << "Inner planner failed to find a solution" << endl;
+            cout << "Read the original model again" << endl;
+            inputStream = new std::ifstream(inputFilename);
+            htn->read(inputStream);
+            tnI = htn->prepareTNi(htn);
+            if (reachability != mtrNO) {
+                htn->calcSCCs();
+                htn->calcSCCGraph();
+
+                // add reachability information to initial task network
+                htn->updateReachability(tnI);
+            }
+            // TODO: check this!
+            aStarType = gValActionPathCosts;
+            aStarWeight = 2;
+            cout << "Search config:" << endl;
+            cout << "Time limit: " << newTimeLimit << " seconds" << endl;
+            cout << " - type: ";
+            switch (aStarType) {
+                case gValNone:
+                    cout << "greedy";
+                    break;
+                case gValActionCosts:
+                    cout << "cost optimal";
+                    break;
+                case gValPathCosts:
+                    cout << "path cost";
+                    break;
+                case gValActionPathCosts:
+                    cout << "action cost + decomposition cost";
+                    break;
+            }
+            cout << endl;
+            cout << " - weight: " << aStarWeight << endl;
+            cout << " - suboptimal: " << (suboptimalSearch ? "true" : "false") << endl;
+            heuristics[hLength - 1] = new hhRC2<hsAddFF>(htn, hLength - 1,
+                                                         estimate, true);
+            ((hhRC2<hsAddFF> *) heuristics[hLength - 1])->sasH->heuristic = sasFF;
+            VisitedList nextVisi(
+                    htn, noVisitedList,
+                    suboptimalSearch,
+                    taskHash, taskSequenceHash,
+                    topologicalOrdering,
+                    orderPairsHash, layerHash,
+                    allowGIcheck,
+                    allowParalleSequencesMode);
+            PriorityQueueSearch nextSearch;
+            OneQueueWAStarFringe nextFringe(aStarType, aStarWeight, hLength);
+
+            searchNode *sol = nextSearch.search(
+                    htn, tnI,
+                    newTimeLimit,
+                    suboptimalSearch,
+                    false,
+                    false,
+                    heuristics,
+                    hLength, nextVisi,
+                    nextFringe);
+            if (sol != nullptr) {
+                auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+                ofstream ofile;
+                ofile.open(args_info.output_arg);
+                ofile << plan << endl;
+                ofile.close();
+                return 0;
+            }
+        }
+    } else if (args_info.config_arg == 4) {
+        heuristics[hLength - 1] = new hhRC2<hsAddFF>(
+                htn, hLength - 1,
+                estimate, true);
+        ((hhRC2<hsAddFF>*)heuristics[hLength - 1])->sasH->heuristic = sasAdd;
         aStarWeight = 2;
         aStarType = gValNone;
         cout << "Start the Inner Planner" << endl;
@@ -618,7 +744,238 @@ int main(int argc, char *argv[]) {
                 sol = nextSol;
                 cout << "Found better solution in the second round search" << endl;
             }
-            if (newTimeLimit > 0) {
+            if (newTimeLimit > 0 && nextSol != nullptr) {
+                cout << "Third Round Search" << endl;
+                aStarType = gValActionCosts;
+                aStarWeight = 1.5;
+                tnI = htn->prepareTNi(htn);
+                estimate = estCOSTS;
+                heuristics[hLength - 1] = new hhRC2<hsAddFF>(htn, hLength - 1, estimate, true);
+                ((hhRC2<hsAddFF> *) heuristics[hLength - 1])->sasH->heuristic = sasFF;
+                cout << "Search config:" << endl;
+                cout << " - Time limit: " << to_string(newTimeLimit) << " seconds" << endl;
+                cout << " - type: ";
+                switch (aStarType) {
+                    case gValNone:
+                        cout << "greedy";
+                        break;
+                    case gValActionCosts:
+                        cout << "cost optimal";
+                        break;
+                    case gValPathCosts:
+                        cout << "path cost";
+                        break;
+                    case gValActionPathCosts:
+                        cout << "action cost + decomposition cost";
+                        break;
+                }
+                cout << endl;
+                cout << " - weight: " << aStarWeight << endl;
+                cout << " - suboptimal: " << (suboptimalSearch ? "true" : "false") << endl;
+                VisitedList thirdVisi(
+                        htn, noVisitedList,
+                        suboptimalSearch,
+                        taskHash, taskSequenceHash,
+                        topologicalOrdering,
+                        orderPairsHash, layerHash,
+                        allowGIcheck,
+                        allowParalleSequencesMode);
+                PriorityQueueSearch thirdSearch;
+                OneQueueWAStarFringe thirdFringe(aStarType, aStarWeight, hLength);
+                searchNode *thirdSol = thirdSearch.search(
+                        htn, tnI, newTimeLimit,
+                        suboptimalSearch,
+                        true, false, heuristics,
+                        hLength, thirdVisi,
+                        thirdFringe);
+                if (thirdSol != nullptr && thirdSol->actionCosts <= sol->actionCosts) {
+                    cout << "Fount an optimal solution" << endl;
+                    sol = thirdSol;
+                }
+            }
+            auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+            ofstream ofile;
+            ofile.open(args_info.output_arg);
+            ofile << plan << endl;
+            ofile.close();
+            return 0;
+        } else {
+            cout << "Inner planner failed to find a solution" << endl;
+            cout << "Read the original model again" << endl;
+            inputStream = new std::ifstream(inputFilename);
+            htn->read(inputStream);
+            tnI = htn->prepareTNi(htn);
+            if (reachability != mtrNO) {
+                htn->calcSCCs();
+                htn->calcSCCGraph();
+
+                // add reachability information to initial task network
+                htn->updateReachability(tnI);
+            }
+            // TODO: check this!
+            aStarType = gValActionPathCosts;
+            aStarWeight = 2;
+            cout << "Search config:" << endl;
+            cout << " - type: ";
+            switch (aStarType) {
+                case gValNone:
+                    cout << "greedy";
+                    break;
+                case gValActionCosts:
+                    cout << "cost optimal";
+                    break;
+                case gValPathCosts:
+                    cout << "path cost";
+                    break;
+                case gValActionPathCosts:
+                    cout << "action cost + decomposition cost";
+                    break;
+            }
+            cout << endl;
+            cout << " - weight: " << aStarWeight << endl;
+            cout << " - suboptimal: " << (suboptimalSearch ? "true" : "false") << endl;
+            heuristics[hLength - 1] = new hhRC2<hsAddFF>(htn, hLength - 1,
+                                                         estimate, true);
+            ((hhRC2<hsAddFF> *) heuristics[hLength - 1])->sasH->heuristic = sasFF;
+            VisitedList nextVisi(
+                    htn, noVisitedList,
+                    suboptimalSearch,
+                    taskHash, taskSequenceHash,
+                    topologicalOrdering,
+                    orderPairsHash, layerHash,
+                    allowGIcheck,
+                    allowParalleSequencesMode);
+            PriorityQueueSearch nextSearch;
+            OneQueueWAStarFringe nextFringe(aStarType, aStarWeight, hLength);
+
+            searchNode *sol = nextSearch.search(
+                    htn, tnI,
+                    newTimeLimit,
+                    suboptimalSearch,
+                    false,
+                    false,
+                    heuristics,
+                    hLength, nextVisi,
+                    nextFringe);
+            if (sol != nullptr) {
+                auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+                ofstream ofile;
+                ofile.open(args_info.output_arg);
+                ofile << plan << endl;
+                ofile.close();
+                return 0;
+            }
+        }
+    } else if (args_info.config_arg == 5) {
+        heuristics[hLength - 1] = new hhRC2<hsAddFF>(
+                htn, hLength - 1,
+                estimate, true);
+        ((hhRC2<hsAddFF>*)heuristics[hLength - 1])->sasH->heuristic = sasFF;
+        aStarWeight = 2;
+        aStarType = gValActionCosts;
+        cout << "Start the Inner Planner" << endl;
+        timeval tp;
+        long newTimeLimit;
+        bool suboptimalSearch = args_info.suboptimal_flag;
+        cout << "First round search" << endl;
+        cout << "Search config:" << endl;
+        cout << " - Time limit: " << timeL << " seconds" << endl;
+        cout << " - type: ";
+        switch (aStarType){
+            case gValNone: cout << "greedy"; break;
+            case gValActionCosts: cout << "cost optimal"; break;
+            case gValPathCosts: cout << "path cost"; break;
+            case gValActionPathCosts: cout << "action cost + decomposition cost"; break;
+        }
+        cout << endl;
+        cout << " - weight: " << aStarWeight << endl;
+        cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
+
+        bool noVisitedList = args_info.noVisitedList_flag;
+        bool allowGIcheck = args_info.noGIcheck_flag;
+        bool taskHash = args_info.noTaskHash_flag;
+        bool taskSequenceHash = args_info.noTaskSequenceHash_flag;
+        bool topologicalOrdering = args_info.noTopologicalOrdering_flag;
+        bool orderPairsHash = args_info.noOrderPairs_flag;
+        bool layerHash = args_info.noLayers_flag;
+        bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
+        VisitedList visi(
+                htn, noVisitedList,
+                suboptimalSearch,
+                taskHash, taskSequenceHash,
+                topologicalOrdering,
+                orderPairsHash, layerHash,
+                allowGIcheck,
+                allowParalleSequencesMode);
+        PriorityQueueSearch search;
+        OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+        gettimeofday(&tp, NULL);
+        long currentT;
+        long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        searchNode *sol = search.search(
+                htn, tnI, timeL,
+                suboptimalSearch,
+                true,
+                false,
+                heuristics,
+                hLength, visi, fringe);
+        gettimeofday(&tp, NULL);
+        currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        newTimeLimit = timeL - ((currentT - startT)/1000);
+        if (sol != nullptr) {
+            cout << "Solution found in the first round" << endl;
+            cout << "Second Round Search" << endl;
+            aStarType = gValActionCosts;
+            aStarWeight = 1.5;
+            cout << "Search config:" << endl;
+            cout << " - Time limit: " << to_string(newTimeLimit) << " seconds" << endl;
+            cout << " - type: ";
+            switch (aStarType) {
+                case gValNone:
+                    cout << "greedy";
+                    break;
+                case gValActionCosts:
+                    cout << "cost optimal";
+                    break;
+                case gValPathCosts:
+                    cout << "path cost";
+                    break;
+                case gValActionPathCosts:
+                    cout << "action cost + decomposition cost";
+                    break;
+            }
+            cout << endl;
+            cout << " - weight: " << aStarWeight << endl;
+            cout << " - suboptimal: " << (suboptimalSearch ? "true" : "false") << endl;
+            tnI = htn->prepareTNi(htn);
+            estimate = estCOSTS;
+            heuristics[hLength - 1] = new hhRC2<hsLmCut>(htn, hLength - 1, estimate, true);
+            VisitedList nextVisi(
+                    htn, noVisitedList,
+                    suboptimalSearch,
+                    taskHash, taskSequenceHash,
+                    topologicalOrdering,
+                    orderPairsHash, layerHash,
+                    allowGIcheck,
+                    allowParalleSequencesMode);
+            PriorityQueueSearch nextSearch;
+            OneQueueWAStarFringe nextFringe(aStarType, aStarWeight, hLength);
+            gettimeofday(&tp, NULL);
+            startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+            searchNode *nextSol = nextSearch.search(
+                    htn, tnI, newTimeLimit,
+                    suboptimalSearch,
+                    true, false, heuristics,
+                    hLength, nextVisi,
+                    nextFringe, sol->actionCosts);
+            gettimeofday(&tp, NULL);
+            currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+            newTimeLimit = newTimeLimit - ((currentT - startT)/1000);
+            if (nextSol != nullptr && nextSol->actionCosts <= sol->actionCosts) {
+                sol = nextSol;
+                cout << "Found better solution in the second round search" << endl;
+            }
+            if (newTimeLimit > 0 && nextSol != nullptr) {
                 cout << "Third Round Search" << endl;
                 aStarType = gValActionCosts;
                 aStarWeight = 1;
@@ -661,7 +1018,7 @@ int main(int argc, char *argv[]) {
                         true, false, heuristics,
                         hLength, thirdVisi,
                         thirdFringe);
-                if (thirdSol != nullptr) {
+                if (thirdSol != nullptr && thirdSol->actionCosts <= sol->actionCosts) {
                     cout << "Fount an optimal solution" << endl;
                     sol = thirdSol;
                 }
@@ -689,6 +1046,136 @@ int main(int argc, char *argv[]) {
             aStarType = gValActionPathCosts;
             aStarWeight = 2;
             cout << "Search config:" << endl;
+            cout << " - type: ";
+            switch (aStarType) {
+                case gValNone:
+                    cout << "greedy";
+                    break;
+                case gValActionCosts:
+                    cout << "cost optimal";
+                    break;
+                case gValPathCosts:
+                    cout << "path cost";
+                    break;
+                case gValActionPathCosts:
+                    cout << "action cost + decomposition cost";
+                    break;
+            }
+            cout << endl;
+            cout << " - weight: " << aStarWeight << endl;
+            cout << " - suboptimal: " << (suboptimalSearch ? "true" : "false") << endl;
+            heuristics[hLength - 1] = new hhRC2<hsAddFF>(htn, hLength - 1,
+                                                         estimate, true);
+            ((hhRC2<hsAddFF> *) heuristics[hLength - 1])->sasH->heuristic = sasFF;
+            VisitedList nextVisi(
+                    htn, noVisitedList,
+                    suboptimalSearch,
+                    taskHash, taskSequenceHash,
+                    topologicalOrdering,
+                    orderPairsHash, layerHash,
+                    allowGIcheck,
+                    allowParalleSequencesMode);
+            PriorityQueueSearch nextSearch;
+            OneQueueWAStarFringe nextFringe(aStarType, aStarWeight, hLength);
+
+            searchNode *sol = nextSearch.search(
+                    htn, tnI,
+                    newTimeLimit,
+                    suboptimalSearch,
+                    false,
+                    false,
+                    heuristics,
+                    hLength, nextVisi,
+                    nextFringe);
+            if (sol != nullptr) {
+                auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+                ofstream ofile;
+                ofile.open(args_info.output_arg);
+                ofile << plan << endl;
+                ofile.close();
+                return 0;
+            }
+        }
+    } else if (args_info.config_arg == 6) {
+        estimate = estCOSTS;
+        heuristics[hLength - 1] = new hhRC2<hsLmCut>(
+                htn, hLength - 1,
+                estimate, true);
+        aStarType = gValActionCosts;
+        aStarWeight = 1;
+        bool suboptimalSearch = args_info.suboptimal_flag;
+        cout << "Search config:" << endl;
+        cout << "- Time limit: " << timeL << " seconds" << endl;
+        cout << " - type: ";
+        switch (aStarType){
+            case gValNone: cout << "greedy"; break;
+            case gValActionCosts: cout << "cost optimal"; break;
+            case gValPathCosts: cout << "path cost"; break;
+            case gValActionPathCosts: cout << "action cost + decomposition cost"; break;
+        }
+        cout << endl;
+        cout << " - weight: " << aStarWeight << endl;
+        cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
+
+        bool noVisitedList = args_info.noVisitedList_flag;
+        bool allowGIcheck = args_info.noGIcheck_flag;
+        bool taskHash = args_info.noTaskHash_flag;
+        bool taskSequenceHash = args_info.noTaskSequenceHash_flag;
+        bool topologicalOrdering = args_info.noTopologicalOrdering_flag;
+        bool orderPairsHash = args_info.noOrderPairs_flag;
+        bool layerHash = args_info.noLayers_flag;
+        bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
+
+        VisitedList visi(
+                htn, noVisitedList,
+                suboptimalSearch,
+                taskHash, taskSequenceHash,
+                topologicalOrdering,
+                orderPairsHash, layerHash,
+                allowGIcheck,
+                allowParalleSequencesMode);
+        PriorityQueueSearch search;
+        OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+        cout << "Start the Inner Planner" << endl;
+        timeval tp;
+        gettimeofday(&tp, NULL);
+        long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        long currentT;
+        searchNode* sol = search.search(
+                htn, tnI, timeL,
+                suboptimalSearch,
+                true,
+                false,
+                heuristics,
+                hLength, visi, fringe);
+        gettimeofday(&tp, NULL);
+        currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        long newTimeLimit = timeL - (currentT - startT);
+        if (sol != nullptr) {
+            auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+            ofstream ofile;
+            ofile.open(args_info.output_arg);
+            ofile << plan << endl;
+            ofile.close();
+            return 0;
+        } else {
+            cout << "Inner planner failed to find a solution" << endl;
+            cout << "Read the original model again" << endl;
+            inputStream = new std::ifstream(inputFilename);
+            htn->read(inputStream);
+            tnI = htn->prepareTNi(htn);
+            if (reachability != mtrNO) {
+                htn->calcSCCs();
+                htn->calcSCCGraph();
+
+                // add reachability information to initial task network
+                htn->updateReachability(tnI);
+            }
+            // TODO: check this!
+            aStarType = gValActionPathCosts;
+            aStarWeight = 2;
+            cout << "Search config:" << endl;
+            cout << "Time limit: " << newTimeLimit << " seconds" << endl;
             cout << " - type: ";
             switch (aStarType) {
                 case gValNone:
