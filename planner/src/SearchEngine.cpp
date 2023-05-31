@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
     ofstream o;
-    ComplexInference(
+    SimpleInference(
             htn,
             "domain.hddl",
             "task.hddl",
@@ -295,7 +295,7 @@ int main(int argc, char *argv[]) {
         searchNode* sol = search.search(
                 htn, tnI, timeL,
                 suboptimalSearch,
-                true,
+                false,
                 false,
                 heuristics,
                 hLength, visi, fringe);
@@ -424,7 +424,7 @@ int main(int argc, char *argv[]) {
         searchNode* sol = search.search(
                 htn, tnI, timeL,
                 suboptimalSearch,
-                true,
+                false,
                 false,
                 heuristics,
                 hLength, visi, fringe);
@@ -685,7 +685,7 @@ int main(int argc, char *argv[]) {
         searchNode *sol = search.search(
                 htn, tnI, timeL,
                 suboptimalSearch,
-                true,
+                false,
                 false,
                 heuristics,
                 hLength, visi, fringe);
@@ -734,7 +734,7 @@ int main(int argc, char *argv[]) {
             searchNode *nextSol = nextSearch.search(
                     htn, tnI, newTimeLimit,
                     suboptimalSearch,
-                    true, false, heuristics,
+                    false, false, heuristics,
                     hLength, nextVisi,
                     nextFringe, sol->actionCosts);
             gettimeofday(&tp, NULL);
@@ -785,7 +785,7 @@ int main(int argc, char *argv[]) {
                 searchNode *thirdSol = thirdSearch.search(
                         htn, tnI, newTimeLimit,
                         suboptimalSearch,
-                        true, false, heuristics,
+                        false, false, heuristics,
                         hLength, thirdVisi,
                         thirdFringe);
                 if (thirdSol != nullptr && thirdSol->actionCosts <= sol->actionCosts) {
@@ -915,7 +915,7 @@ int main(int argc, char *argv[]) {
         searchNode *sol = search.search(
                 htn, tnI, timeL,
                 suboptimalSearch,
-                true,
+                false,
                 false,
                 heuristics,
                 hLength, visi, fringe);
@@ -965,7 +965,7 @@ int main(int argc, char *argv[]) {
             searchNode *nextSol = nextSearch.search(
                     htn, tnI, newTimeLimit,
                     suboptimalSearch,
-                    true, false, heuristics,
+                    false, false, heuristics,
                     hLength, nextVisi,
                     nextFringe, sol->actionCosts);
             gettimeofday(&tp, NULL);
@@ -1015,7 +1015,7 @@ int main(int argc, char *argv[]) {
                 searchNode *thirdSol = thirdSearch.search(
                         htn, tnI, newTimeLimit,
                         suboptimalSearch,
-                        true, false, heuristics,
+                        false, false, heuristics,
                         hLength, thirdVisi,
                         thirdFringe);
                 if (thirdSol != nullptr && thirdSol->actionCosts <= sol->actionCosts) {
@@ -1144,7 +1144,7 @@ int main(int argc, char *argv[]) {
         searchNode* sol = search.search(
                 htn, tnI, timeL,
                 suboptimalSearch,
-                true,
+                false,
                 false,
                 heuristics,
                 hLength, visi, fringe);
