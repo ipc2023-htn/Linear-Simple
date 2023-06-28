@@ -62,7 +62,8 @@ From: ubuntu:22.04
 	## run your planner here
 	/pandaPIparser/pandaPIparser ${DOMAINFILE} ${PROBLEMFILE} task.htn
 	/pandaPIgrounder/pandaPIgrounder task.htn task.sas
-	/planner/build/pandaPIengine --config 4 -t 1780 --output ${PLANFILE} task.sas 
+	/planner/build/pandaPIengine --config 4 -t 1780 --output ${PLANFILE}.i task.sas 
+	/pandaPIparser/pandaPIparser -c ${PLANFILE}.i ${PLANFILE}
 
 ## Update the following fields with meta data about your submission.
 ## Please use the same field names and use only one line for each value.
