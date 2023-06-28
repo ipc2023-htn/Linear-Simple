@@ -177,9 +177,8 @@ pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol){
 			decompositionStructure.push_back(application);
 			if (sost->task == htn->initialTask) root = application.first;
 		} else {
-			// sol = to_string(sost->mySolutionStepInstanceNumber) + " " +
-			//		htn->taskNames[sost->task] + "\n" + sol;
-            sol = htn->taskNames[sost->task] + "\n" + sol;
+			sol = to_string(sost->mySolutionStepInstanceNumber) + " " +
+					htn->taskNames[sost->task] + "\n" + sol;
 		}
 		
 		if (sost->mySolutionStepInstanceNumber != 0)
@@ -193,14 +192,14 @@ pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol){
 	}
 
 	sol = "==>\n" + sol;
-//	sol = sol + "root " + to_string(root) + "\n";
-//	for (auto x : decompositionStructure){
-//		sol += to_string(x.first) + " " + x.second;
-//		sort(children[x.first].begin(), children[x.first].end());
-//		for (auto [_,y] : children[x.first])
-//			sol += " " + to_string(y);
-//		sol += "\n";
-//	}
+	sol = sol + "root " + to_string(root) + "\n";
+	for (auto x : decompositionStructure){
+		sol += to_string(x.first) + " " + x.second;
+		sort(children[x.first].begin(), children[x.first].end());
+		for (auto [_,y] : children[x.first])
+			sol += " " + to_string(y);
+		sol += "\n";
+	}
 
 	sol += "<==";
 
