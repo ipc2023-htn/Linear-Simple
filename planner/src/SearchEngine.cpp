@@ -554,7 +554,7 @@ int main(int argc, char *argv[]) {
         searchNode* sol = search.search(
                 htn, tnI, timeL,
                 suboptimalSearch,
-                true,
+                false,
                 false,
                 heuristics,
                 hLength, visi, fringe);
