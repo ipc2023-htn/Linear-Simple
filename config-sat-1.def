@@ -63,6 +63,9 @@ From: ubuntu:22.04
 	/pandaPIparser/pandaPIparser ${DOMAINFILE} ${PROBLEMFILE} task.htn
 	/pandaPIgrounder/pandaPIgrounder task.htn task.sas
 	/planner/build/pandaPIengine --config 4 -t 1780 --output ${PLANFILE}.i task.sas 
+	sed -i 's/US_/_/g' ${PLANFILE}.i
+	sed -i 's/M_/-/g' ${PLANFILE}.i
+	sed -i 's/MINUS_/-/g' ${PLANFILE}.i
 	/pandaPIparser/pandaPIparser -c ${PLANFILE}.i ${PLANFILE}
 
 ## Update the following fields with meta data about your submission.
