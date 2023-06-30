@@ -554,7 +554,7 @@ int main(int argc, char *argv[]) {
         searchNode* sol = search.search(
                 htn, tnI, timeL,
                 suboptimalSearch,
-                true,
+                false,
                 false,
                 heuristics,
                 hLength, visi, fringe);
@@ -694,6 +694,11 @@ int main(int argc, char *argv[]) {
         newTimeLimit = timeL - ((currentT - startT)/1000);
         if (sol != nullptr) {
             cout << "Solution found in the first round" << endl;
+            auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+            ofstream ofileFirst;
+            ofileFirst.open(args_info.output_arg);
+            ofileFirst << plan << endl;
+            ofileFirst.close();
             cout << "Second Round Search" << endl;
             aStarType = gValActionCosts;
             cout << "Search config:" << endl;
@@ -743,6 +748,11 @@ int main(int argc, char *argv[]) {
             if (nextSol != nullptr && nextSol->actionCosts <= sol->actionCosts) {
                 sol = nextSol;
                 cout << "Found better solution in the second round search" << endl;
+                auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+                ofstream ofileSecond;
+                ofileSecond.open(args_info.output_arg);
+                ofileSecond << plan << endl;
+                ofileSecond.close();
             }
             if (newTimeLimit > 0 && nextSol != nullptr) {
                 cout << "Third Round Search" << endl;
@@ -791,13 +801,13 @@ int main(int argc, char *argv[]) {
                 if (thirdSol != nullptr && thirdSol->actionCosts <= sol->actionCosts) {
                     cout << "Fount an optimal solution" << endl;
                     sol = thirdSol;
+                    auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+                    ofstream ofileThird;
+                    ofileThird.open(args_info.output_arg);
+                    ofileThird << plan << endl;
+                    ofileThird.close();
                 }
             }
-            auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
-            ofstream ofile;
-            ofile.open(args_info.output_arg);
-            ofile << plan << endl;
-            ofile.close();
             return 0;
         } else {
             cout << "Inner planner failed to find a solution" << endl;
@@ -924,6 +934,11 @@ int main(int argc, char *argv[]) {
         newTimeLimit = timeL - ((currentT - startT)/1000);
         if (sol != nullptr) {
             cout << "Solution found in the first round" << endl;
+            auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+            ofstream ofileFirst;
+            ofileFirst.open(args_info.output_arg);
+            ofileFirst << plan << endl;
+            ofileFirst.close();
             cout << "Second Round Search" << endl;
             aStarType = gValActionCosts;
             aStarWeight = 1.5;
@@ -974,6 +989,11 @@ int main(int argc, char *argv[]) {
             if (nextSol != nullptr && nextSol->actionCosts <= sol->actionCosts) {
                 sol = nextSol;
                 cout << "Found better solution in the second round search" << endl;
+                auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+                ofstream ofileSecond;
+                ofileSecond.open(args_info.output_arg);
+                ofileSecond << plan << endl;
+                ofileSecond.close();
             }
             if (newTimeLimit > 0 && nextSol != nullptr) {
                 cout << "Third Round Search" << endl;
@@ -1021,13 +1041,13 @@ int main(int argc, char *argv[]) {
                 if (thirdSol != nullptr && thirdSol->actionCosts <= sol->actionCosts) {
                     cout << "Fount an optimal solution" << endl;
                     sol = thirdSol;
+                    auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
+                    ofstream ofileThird;
+                    ofileThird.open(args_info.output_arg);
+                    ofileThird << plan << endl;
+                    ofileThird.close();
                 }
             }
-            auto [plan, length] = extractSolutionFromSearchNode(htn, sol);
-            ofstream ofile;
-            ofile.open(args_info.output_arg);
-            ofile << plan << endl;
-            ofile.close();
             return 0;
         } else {
             cout << "Inner planner failed to find a solution" << endl;
