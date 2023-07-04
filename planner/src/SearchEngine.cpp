@@ -754,7 +754,7 @@ int main(int argc, char *argv[]) {
                 ofileSecond << plan << endl;
                 ofileSecond.close();
             }
-            if (newTimeLimit > 0 && nextSol != nullptr) {
+            if (newTimeLimit > 0) {
                 cout << "Third Round Search" << endl;
                 aStarType = gValActionCosts;
                 aStarWeight = 1.5;
@@ -963,8 +963,10 @@ int main(int argc, char *argv[]) {
             cout << " - weight: " << aStarWeight << endl;
             cout << " - suboptimal: " << (suboptimalSearch ? "true" : "false") << endl;
             tnI = htn->prepareTNi(htn);
-            estimate = estCOSTS;
-            heuristics[hLength - 1] = new hhRC2<hsLmCut>(htn, hLength - 1, estimate, true);
+            heuristics[hLength - 1] = new hhRC2<hsAddFF>(
+                htn, hLength - 1,
+                estimate, true);
+            ((hhRC2<hsAddFF>*)heuristics[hLength - 1])->sasH->heuristic = sasFF;
             VisitedList nextVisi(
                     htn, noVisitedList,
                     suboptimalSearch,
@@ -995,7 +997,7 @@ int main(int argc, char *argv[]) {
                 ofileSecond << plan << endl;
                 ofileSecond.close();
             }
-            if (newTimeLimit > 0 && nextSol != nullptr) {
+            if (newTimeLimit > 0) {
                 cout << "Third Round Search" << endl;
                 aStarType = gValActionCosts;
                 aStarWeight = 1;
